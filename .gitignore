@@ -1,8 +1,4 @@
 *.pyc
-*.jpg
-*.png
-*.mp4
 test.py
 .DS_Store
 .idea/*
-kazan_attractions/
