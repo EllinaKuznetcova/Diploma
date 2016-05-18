@@ -10,17 +10,25 @@ import image_names
 import random
 import scipy as sp
 from datetime import datetime
+from sys import argv
 
 t1 = datetime.now()
 det_vectors = []
 key_points = []
 frames_in_query = []
 query_clusters = []
+dir = os.path.dirname(__file__)
+
+#parameters
 MSCLUSTER_NUM = 10000
 MIN_MATCH_COUNT = 5
 QUERY_IMGS_COUNT = 1
-dir = os.path.dirname(__file__)
 IMAGES_PATH = dir + '/kazan_attractions/'
+threshold = 7
+max_iter_num = 30
+min_clusters_for_frame = 7
+
+query_image_path = 'kazan_attractions/chasha/3.jpg'
 
 f1 = open('image_doc_kazan.txt', 'w+')
 
@@ -145,11 +153,9 @@ def normal_spacial_consistency(frame):  # (n,[[cl,w,[pts]]])
             query_clusters_for_frame.remove(cluster)
     # print "len(cl_f_fr): " + str(len(query_clusters_for_frame))
     iteration = 0
-    max_iter_num = 30
     M_weight = 0
     best_M = 0
-    threshold = 7
-    while M_weight <= threshold and iteration < max_iter_num and len(query_clusters_for_frame) > 7:
+    while M_weight <= threshold and iteration < max_iter_num and len(query_clusters_for_frame) > min_clusters_for_frame:
         cluster0 = query_clusters_for_frame[random.randint(0, len(query_clusters_for_frame) - 1)]
         query_clusters_for_frame.remove(cluster0)
         cluster1 = query_clusters_for_frame[random.randint(0, len(query_clusters_for_frame) - 1)]
@@ -318,8 +324,9 @@ def show_best_suitable_frame(possible_frames):
     frame = cv2.imread(image_name)
     match(frame, suitable_frame_num)
 
-
-img = cv2.imread('kazan_attractions/chasha/5.jpg', 0)
+if len(argv) > 1:
+  script, query_image_path = argv
+img = cv2.imread(query_image_path, 0)
 get_det_vectors(img)
 get_doc()
 process_doc()
