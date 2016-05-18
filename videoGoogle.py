@@ -128,10 +128,7 @@ def images_processor():
             image = cv2.imread(IMAGES_PATH + image_names.titles[building_num] + '/'+ str(image_num + 1) + '.jpg', 0)
             if image is not None:
                 print image_names.titles[building_num] + ' ' + str(image_num)
-                if image_num <= image_names.max_photos_num[building_num]*(0.67):
-                    get_det_vectors(image,True)
-                else:
-                    get_det_vectors(image)
+                get_det_vectors(image,True)
             image_num += 1
     print "finished processing images"
 
