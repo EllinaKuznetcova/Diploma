@@ -27,8 +27,11 @@ IMAGES_PATH = dir + '/kazan_attractions/'
 threshold = 7
 max_iter_num = 30
 min_clusters_for_frame = 7
+val_point_x = 5
+val_point_y = 5
+num_of_img_apply_to = 10
 
-query_image_path = 'kazan_attractions/chasha/3.jpg'
+query_image_path = 'kazan_attractions/chasha/9.jpg'
 
 f1 = open('image_doc_kazan.txt', 'w+')
 
@@ -44,17 +47,8 @@ rejected_clusters = joblib.load('rejected_clusters_kazan.pkl')
 def get_det_vectors(frame):
     global det_vectors
     kp_frame, det_vectors = sift.detectAndCompute(frame, None)
-    # view = frame.copy()
-    color = tuple([sp.random.randint(0, 255) for _ in xrange(3)])
     for i in range(len(kp_frame)):
         key_points.append(kp_frame[i].pt)
-    #     pt = (int(kp_frame[i].pt[0]),int(kp_frame[i].pt[1]))
-    #     if pt[0] > 700:
-    #         cv2.circle(view,pt,3,color,2)
-    #         print pt[1]
-    # plt.figure()
-    # plt.imshow(view)
-    # plt.show()
 
 
 def get_doc():
@@ -75,7 +69,7 @@ def get_doc():
         if doc[cluster_num][0] != 0:
             print >> f1, cluster_num, ":", doc[cluster_num][1]
             query_clusters.append(cluster_num)
-    print "finished query processing"
+    print "finished getting doc"
 
 
 def process_doc():
@@ -151,7 +145,6 @@ def normal_spacial_consistency(frame):  # (n,[[cl,w,[pts]]])
     for cluster in query_clusters:
         if len([item for item in frame[1] if item[0] == cluster]) == 0:
             query_clusters_for_frame.remove(cluster)
-    # print "len(cl_f_fr): " + str(len(query_clusters_for_frame))
     iteration = 0
     M_weight = 0
     best_M = 0
@@ -181,8 +174,8 @@ def normal_spacial_consistency(frame):  # (n,[[cl,w,[pts]]])
 
                 for doc_pts_for_cl in frame[1]:
                     for pt in doc_pts_for_cl[2]:
-                        if abs(tr_point[0] - pt[0]) < 5 \
-                                and abs(tr_point[1] - pt[1]) < 5:
+                        if abs(tr_point[0] - pt[0]) < val_point_x \
+                                and abs(tr_point[1] - pt[1]) < val_point_y:
                             M_weight += doc_pts_for_cl[1]
                             validated_points.append([query_point, pt, doc_pts_for_cl[1], cl, doc_pts_for_cl[0]])
                             if cl == doc_pts_for_cl[0]:
@@ -191,7 +184,7 @@ def normal_spacial_consistency(frame):  # (n,[[cl,w,[pts]]])
         M_weight -= doc[cluster0][0] + doc[cluster1][0] + doc[cluster2][0]
 
         iteration += 1
-        # print M_weight
+
         if M_weight > threshold:
             best_pts_img = pts1
             best_pts_frame = pts2
@@ -207,10 +200,10 @@ def normal_spacial_consistency(frame):  # (n,[[cl,w,[pts]]])
 
 
 def spacial_consistency(possible_frames):
-    num_of_img_apply_to = 10
     possible_frames = possible_frames[0:num_of_img_apply_to]
 
     pos_frames_inliers = []
+    print 'frames candidates to add in query:'
     for frame_data in possible_frames:
 
         frame_kp = [item for item in possible_frames_kp if item[0] == frame_data[0]][0]
@@ -226,9 +219,10 @@ def spacial_consistency(possible_frames):
     pos_frames_inliers = sorted(pos_frames_inliers, key=operator.itemgetter(2))  # sort frames by number of inliers
     pos_frames_inliers.reverse()
     pos_frames_inliers = pos_frames_inliers[0:QUERY_IMGS_COUNT]
-
+    print 'frames added to query (' + str(QUERY_IMGS_COUNT) + '):'
     for frame in pos_frames_inliers:  # expand query
         frame_num = frame[0]
+        print get_image_name(frame_num)
         frames_in_query.append(frame_num)
         # find points that matches and expand query with them
         matched_pts_for_frame = frame[1]
@@ -246,7 +240,6 @@ def spacial_consistency(possible_frames):
 
 def match(frame, frame_num):
     frame_kp = [item for item in possible_frames_kp if item[0] == frame_num][0]
-    print frame_num
     M_weight, best_M, pts_img, pts_frame, validated_points = normal_spacial_consistency(frame_kp)
     if not isinstance(best_M,int):
         h, w = img.shape
@@ -325,7 +318,7 @@ def show_best_suitable_frame(possible_frames):
     match(frame, suitable_frame_num)
 
 if len(argv) > 1:
-  script, query_image_path = argv
+    script, query_image_path = argv
 img = cv2.imread(query_image_path, 0)
 get_det_vectors(img)
 get_doc()
