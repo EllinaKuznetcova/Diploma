@@ -21,7 +21,6 @@ dir = os.path.dirname(__file__)
 
 #parameters
 MSCLUSTER_NUM = 10000
-MIN_MATCH_COUNT = 5
 QUERY_IMGS_COUNT = 1
 IMAGES_PATH = dir + '/kazan_attractions/'
 threshold = 7
@@ -30,8 +29,10 @@ min_clusters_for_frame = 7
 val_point_x = 5
 val_point_y = 5
 num_of_img_apply_to = 10
+result_images_count = 10
+enable_query_expansion = False
 
-query_image_path = 'kazan_attractions/chasha/9.jpg'
+query_image_path = 'kazan_attractions/petropavlovskii_sobor/5.jpg'
 
 f1 = open('image_doc_kazan.txt', 'w+')
 
@@ -129,10 +130,14 @@ def process_doc():
     possible_frames_kp = sorted(possible_frames_kp.items(), key=operator.itemgetter(0))
     # print possible_frames_kp
     print "finished getting db_doc"
-    if len(frames_in_query) == 0:
-        spacial_consistency(possible_frames)
+    if enable_query_expansion :
+        if len(frames_in_query) == 0:
+            spacial_consistency(possible_frames)
+        else:
+            show_best_suitable_frame(possible_frames)
     else:
         show_best_suitable_frame(possible_frames)
+
 
 
 def normal_spacial_consistency(frame):  # (n,[[cl,w,[pts]]])
@@ -238,7 +243,7 @@ def spacial_consistency(possible_frames):
     process_doc()
 
 
-def match(frame, frame_num):
+def match(frame, frame_num, index):
     frame_kp = [item for item in possible_frames_kp if item[0] == frame_num][0]
     M_weight, best_M, pts_img, pts_frame, validated_points = normal_spacial_consistency(frame_kp)
     if not isinstance(best_M,int):
@@ -284,19 +289,10 @@ def match(frame, frame_num):
             pt_frame = matched_pts[1]
             cv2.line(view, (int(pt_img[0]), int(pt_img[1])),
                      (int(pt_frame[0] + w1), int(pt_frame[1])), color, 2)
-            cv2.line(view, (int(pt_img[0]), int(pt_img[1])),
-                     (int(pt_frame[0] + w1), int(pt_frame[1])), color, 2)
-            cv2.line(view, (int(pt_img[0]), int(pt_img[1])),
-                     (int(pt_frame[0] + w1), int(pt_frame[1])), color, 2)
         plt.figure()
         plt.imshow(view)
-        plt.show()
 
-        cv2.imwrite("matched_kazan.jpg", view)
-        t2 = datetime.now()
-        delta = t2 - t1
-        combined = delta.seconds + delta.microseconds/1E6
-        print "time: " + str(combined)
+        cv2.imwrite("matched_kazan" + str(index + 1) + ".jpg", view)
     else:
         print "not enough matches found"
 
@@ -311,15 +307,26 @@ def get_image_name(frame_num):
     return IMAGES_PATH + image_names.get_image_name(frame_num + 1)
 
 def show_best_suitable_frame(possible_frames):
-    suitable_frame_num = possible_frames[0][0]
-    image_name = get_image_name(suitable_frame_num)
-    print "result image name: " + image_name
-    frame = cv2.imread(image_name)
-    match(frame, suitable_frame_num)
+    for i in range(result_images_count):
+        if i < len(possible_frames):
+            suitable_frame_num = possible_frames[i][0]
+            image_name = get_image_name(suitable_frame_num)
+            print "result image " + str(i + 1) + " name: " + image_name
+            frame = cv2.imread(image_name)
+            match(frame, suitable_frame_num, i)
+        else:
+            print "number of found images less than " + str(i)
+            break
 
 if len(argv) > 1:
-    script, query_image_path = argv
+    script, result_images_count, enable_query_expansion, query_image_path = argv
 img = cv2.imread(query_image_path, 0)
 get_det_vectors(img)
 get_doc()
 process_doc()
+
+plt.show()
+t2 = datetime.now()
+delta = t2 - t1
+combined = delta.seconds + delta.microseconds/1E6
+print "time: " + str(combined)

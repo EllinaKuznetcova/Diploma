@@ -10,13 +10,10 @@ To start working with project you need to install git large files storage extens
 
 To start comparing image with processed images from database:
 
-  if you want to use standart image:
-  
-    python photo_processor.py
-    
-  custom:
-  
-    python photo_processor.py path_to_image
+  Parameters:
+        `result_images_count` - number of images to receive as result.
+        `enable_query_expansion` - should enable query expansion
+        `query_image_path` - path to query image
 
 To start process images from database and creating inverted file:
 
