@@ -14,7 +14,7 @@ To start comparing image with processed images from database:
   
         `result_images_count` - number of images to receive as result.
         
-        `enable_query_expansion` - should enable query expansion
+        `enable_query_expansion` - True if you want to enable query expansion
         
         `query_image_path` - path to query image
 
