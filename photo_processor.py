@@ -320,6 +320,10 @@ def show_best_suitable_frame(possible_frames):
 
 if len(argv) > 1:
     script, result_images_count, enable_query_expansion, query_image_path = argv
+result_images_count = int(result_images_count)
+if not isinstance(enable_query_expansion,bool):
+    enable_query_expansion = True if enable_query_expansion == "True" else False
+    
 img = cv2.imread(query_image_path, 0)
 get_det_vectors(img)
 get_doc()
