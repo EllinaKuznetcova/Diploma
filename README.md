@@ -11,8 +11,11 @@ To start working with project you need to install git large files storage extens
 To start comparing image with processed images from database:
 
   Parameters:
+  
         `result_images_count` - number of images to receive as result.
-        `enable_query_expansion` - should enable query expansion
+        
+        `enable_query_expansion` - True if you want to enable query expansion
+        
         `query_image_path` - path to query image
 
 To start process images from database and creating inverted file:
