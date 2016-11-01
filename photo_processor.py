@@ -24,15 +24,15 @@ MSCLUSTER_NUM = 10000
 QUERY_IMGS_COUNT = 1
 IMAGES_PATH = dir + '/kazan_attractions/'
 threshold = 7
-max_iter_num = 30
+max_iter_num = 1000
 min_clusters_for_frame = 7
-val_point_x = 5
-val_point_y = 5
+val_point_x = 2
+val_point_y = 2
 num_of_img_apply_to = 10
-result_images_count = 10
+result_images_count = 5
 enable_query_expansion = False
 
-query_image_path = 'kazan_attractions/petropavlovskii_sobor/5.jpg'
+query_image_path = 'kazan_attractions/chasha/9.jpg'
 
 f1 = open('image_doc_kazan.txt', 'w+')
 
@@ -153,50 +153,110 @@ def normal_spacial_consistency(frame):  # (n,[[cl,w,[pts]]])
     iteration = 0
     M_weight = 0
     best_M = 0
-    while M_weight <= threshold and iteration < max_iter_num and len(query_clusters_for_frame) > min_clusters_for_frame:
-        cluster0 = query_clusters_for_frame[random.randint(0, len(query_clusters_for_frame) - 1)]
-        query_clusters_for_frame.remove(cluster0)
-        cluster1 = query_clusters_for_frame[random.randint(0, len(query_clusters_for_frame) - 1)]
-        query_clusters_for_frame.remove(cluster1)
-        cluster2 = query_clusters_for_frame[random.randint(0, len(query_clusters_for_frame) - 1)]
-        query_clusters_for_frame.remove(cluster2)
+    if float(len(query_clusters_for_frame))/len(query_clusters) > 0.8:
+        while M_weight <= threshold and iteration < max_iter_num and len(query_clusters_for_frame) > min_clusters_for_frame:
+            cluster0 = query_clusters_for_frame[random.randint(0, len(query_clusters_for_frame) - 1)]
+            query_clusters_for_frame.remove(cluster0)
+            cluster1 = query_clusters_for_frame[random.randint(0, len(query_clusters_for_frame) - 1)]
+            query_clusters_for_frame.remove(cluster1)
+            cluster2 = query_clusters_for_frame[random.randint(0, len(query_clusters_for_frame) - 1)]
+            query_clusters_for_frame.remove(cluster2)
 
-        pts1 = np.float32([doc[cluster0][1][0], doc[cluster1][1][0], doc[cluster2][1][0]])
-        pts2 = np.float32([[item for item in frame[1] if item[0] == cluster0][0][2][0],
-                           [item for item in frame[1] if item[0] == cluster1][0][2][0],
-                           [item for item in frame[1] if item[0] == cluster2][0][2][0]])
+            first_index1     = random.randint(0,len(doc[cluster0][1]) - 1)
+            sec_index1       = random.randint(0,len(doc[cluster1][1]) - 1)
+            third_index1     = random.randint(0,len(doc[cluster2][1]) - 1)
 
-        M = cv2.getAffineTransform(pts1, pts2)
-        best_M = M
-        M_weight = 0
-        validated_points = []  # [tr_point, pt, w, query_cl, db_cl]
+            pts1 = np.float32([doc[cluster0][1][first_index1], doc[cluster1][1][sec_index1], doc[cluster2][1][third_index1]])
 
-        for cl in range(len(doc)):
-            for point_num in range(len(doc[cl][1])):
-                tr_point = np.matrix(M) * np.float32([[doc[cl][1][point_num][0]], [doc[cl][1][point_num][1]], [1]])
-                tr_point = (float(tr_point[0]), float(tr_point[1]))
-                query_point = (float(doc[cl][1][point_num][0]), float(doc[cl][1][point_num][1]))
+            first_index2     = random.randint(0,len([item for item in frame[1] if item[0] == cluster0][0][2]) - 1)
+            sec_index2       = random.randint(0,len([item for item in frame[1] if item[0] == cluster1][0][2]) - 1)
+            third_index2     = random.randint(0,len([item for item in frame[1] if item[0] == cluster2][0][2]) - 1)
+            pts2 = np.float32([[item for item in frame[1] if item[0] == cluster0][0][2][first_index2],
+                               [item for item in frame[1] if item[0] == cluster1][0][2][sec_index2],
+                               [item for item in frame[1] if item[0] == cluster2][0][2][third_index2]])
 
-                for doc_pts_for_cl in frame[1]:
-                    for pt in doc_pts_for_cl[2]:
-                        if abs(tr_point[0] - pt[0]) < val_point_x \
-                                and abs(tr_point[1] - pt[1]) < val_point_y:
-                            M_weight += doc_pts_for_cl[1]
-                            validated_points.append([query_point, pt, doc_pts_for_cl[1], cl, doc_pts_for_cl[0]])
-                            if cl == doc_pts_for_cl[0]:
-                                M_weight += 1
+            M = cv2.getAffineTransform(pts1, pts2)
+            best_M = M
+            M_weight = 0
+            validated_points = []  # [tr_point, pt, w, query_cl, db_cl]
 
-        M_weight -= doc[cluster0][0] + doc[cluster1][0] + doc[cluster2][0]
+            for cl in range(len(doc)):
+                for point_num in range(len(doc[cl][1])):
+                    tr_point = np.matrix(M) * np.float32([[doc[cl][1][point_num][0]], [doc[cl][1][point_num][1]], [1]])
+                    tr_point = (float(tr_point[0]), float(tr_point[1]))
+                    query_point = (float(doc[cl][1][point_num][0]), float(doc[cl][1][point_num][1]))
 
-        iteration += 1
+                    for doc_pts_for_cl in frame[1]:
+                        for pt in doc_pts_for_cl[2]:
+                            if abs(tr_point[0] - pt[0]) < val_point_x \
+                                    and abs(tr_point[1] - pt[1]) < val_point_y:
+                                M_weight += doc_pts_for_cl[1]
+                                validated_points.append([query_point, pt, doc_pts_for_cl[1], cl, doc_pts_for_cl[0]])
+                                if cl == doc_pts_for_cl[0]:
+                                    M_weight += 1
 
-        if M_weight > threshold:
-            best_pts_img = pts1
-            best_pts_frame = pts2
-        else:
-            query_clusters_for_frame.append(cluster0)
-            query_clusters_for_frame.append(cluster1)
-            query_clusters_for_frame.append(cluster2)
+            M_weight -= doc[cluster0][0] + doc[cluster1][0] + doc[cluster2][0]
+            # print "weight: " + str(M_weight)
+            iteration += 1
+
+            if M_weight > threshold:
+                best_pts_img = pts1
+                best_pts_frame = pts2
+            else:
+                query_clusters_for_frame.append(cluster0)
+                query_clusters_for_frame.append(cluster1)
+                query_clusters_for_frame.append(cluster2)
+    else:
+        all_possible_combinations = []
+        for cl0num in range(len(query_clusters_for_frame)):
+            for cl1num in range(cl0num + 1,len(query_clusters_for_frame)):
+                for cl2num in range(cl1num + 1,len(query_clusters_for_frame)):
+                    cl0 = query_clusters_for_frame[cl0num]
+                    cl1 = query_clusters_for_frame[cl1num]
+                    cl2 = query_clusters_for_frame[cl2num]
+                    all_possible_combinations.append([cl0,cl1,cl2])
+
+        while M_weight <= threshold \
+                and len(all_possible_combinations) > 0 \
+                and len(query_clusters_for_frame) > min_clusters_for_frame \
+                and iteration <= max_iter_num:
+            clusters_index = random.randint(0,len(all_possible_combinations) - 1)
+            clusters = all_possible_combinations[clusters_index]
+            cluster0 = clusters[0]
+            cluster1 = clusters[1]
+            cluster2 = clusters[2]
+            pts1 = np.float32([doc[cluster0][1][0], doc[cluster1][1][0], doc[cluster2][1][0]])
+            pts2 = np.float32([[item for item in frame[1] if item[0] == cluster0][0][2][0],
+                               [item for item in frame[1] if item[0] == cluster1][0][2][0],
+                               [item for item in frame[1] if item[0] == cluster2][0][2][0]])
+
+            M = cv2.getAffineTransform(pts1, pts2)
+            best_M = M
+            M_weight = 0
+            validated_points = []  # [tr_point, pt, w, query_cl, db_cl]
+
+            for cl in range(len(doc)):
+                for point_num in range(len(doc[cl][1])):
+                    tr_point = np.matrix(M) * np.float32([[doc[cl][1][point_num][0]], [doc[cl][1][point_num][1]], [1]])
+                    tr_point = (float(tr_point[0]), float(tr_point[1]))
+                    query_point = (float(doc[cl][1][point_num][0]), float(doc[cl][1][point_num][1]))
+
+                    for doc_pts_for_cl in frame[1]:
+                        for pt in doc_pts_for_cl[2]:
+                            if abs(tr_point[0] - pt[0]) < val_point_x \
+                                    and abs(tr_point[1] - pt[1]) < val_point_y:
+                                M_weight += doc_pts_for_cl[1]
+                                validated_points.append([query_point, pt, doc_pts_for_cl[1], cl, doc_pts_for_cl[0]])
+                                if cl == doc_pts_for_cl[0]:
+                                    M_weight += 1
+
+            M_weight -= doc[cluster0][0] + doc[cluster1][0] + doc[cluster2][0]
+            all_possible_combinations.remove(clusters)
+            iteration += 1
+
+            if M_weight > threshold:
+                best_pts_img = pts1
+                best_pts_frame = pts2
 
     if M_weight > threshold:
         return M_weight, best_M, best_pts_img, best_pts_frame, validated_points
@@ -247,24 +307,24 @@ def match(frame, frame_num, index):
     frame_kp = [item for item in possible_frames_kp if item[0] == frame_num][0]
     M_weight, best_M, pts_img, pts_frame, validated_points = normal_spacial_consistency(frame_kp)
     if not isinstance(best_M,int):
-        h, w = img.shape
-        botton_left = np.matrix(best_M) * np.float32([[0], [0], [1]])
-        top_left = np.matrix(best_M) * np.float32([[0], [h - 1], [1]])
-        top_right = np.matrix(best_M) * np.float32([[w - 1], [h - 1], [1]])
-        bottom_right = np.matrix(best_M) * np.float32([[w - 1], [0], [1]])
-        color = tuple([sp.random.randint(0, 255) for _ in xrange(3)])
-
-        cv2.line(frame, (int(botton_left[0]), int(botton_left[1])),
-                 (int(top_left[0]), int(top_left[1])), color, 5)
-
-        cv2.line(frame, (int(top_left[0]), int(top_left[1])),
-                 (int(top_right[0]), int(top_right[1])), color, 5)
-
-        cv2.line(frame, (int(top_right[0]), int(top_right[1])),
-                 (int(bottom_right[0]), int(bottom_right[1])), color, 5)
-
-        cv2.line(frame, (int(bottom_right[0]), int(bottom_right[1])),
-                 (int(botton_left[0]), int(botton_left[1])), color, 5)
+        # h, w = img.shape
+        # botton_left = np.matrix(best_M) * np.float32([[0], [0], [1]])
+        # top_left = np.matrix(best_M) * np.float32([[0], [h - 1], [1]])
+        # top_right = np.matrix(best_M) * np.float32([[w - 1], [h - 1], [1]])
+        # bottom_right = np.matrix(best_M) * np.float32([[w - 1], [0], [1]])
+        # color = tuple([sp.random.randint(0, 255) for _ in xrange(3)])
+        #
+        # cv2.line(frame, (int(botton_left[0]), int(botton_left[1])),
+        #          (int(top_left[0]), int(top_left[1])), color, 5)
+        #
+        # cv2.line(frame, (int(top_left[0]), int(top_left[1])),
+        #          (int(top_right[0]), int(top_right[1])), color, 5)
+        #
+        # cv2.line(frame, (int(top_right[0]), int(top_right[1])),
+        #          (int(bottom_right[0]), int(bottom_right[1])), color, 5)
+        #
+        # cv2.line(frame, (int(bottom_right[0]), int(bottom_right[1])),
+        #          (int(botton_left[0]), int(botton_left[1])), color, 5)
 
         h1, w1 = img.shape[:2]
         h2, w2 = frame.shape[:2]
@@ -320,6 +380,10 @@ def show_best_suitable_frame(possible_frames):
 
 if len(argv) > 1:
     script, result_images_count, enable_query_expansion, query_image_path = argv
+result_images_count = int(result_images_count)
+if not isinstance(enable_query_expansion,bool):
+    enable_query_expansion = True if enable_query_expansion == "True" else False
+    
 img = cv2.imread(query_image_path, 0)
 get_det_vectors(img)
 get_doc()
